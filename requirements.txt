@@ -4,3 +4,4 @@ obspy
 numpy
 pandas
 pyproj
+pyasdf
