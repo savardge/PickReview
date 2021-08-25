@@ -1,0 +1,6 @@
+setuptools
+pyrocko
+obspy
+numpy
+pandas
+pyproj
