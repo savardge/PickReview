@@ -1,5 +1,4 @@
 import datetime
-
 import obspy.core.event
 from pyrocko.util import str_to_time
 from pyrocko.gui.marker import PhaseMarker, Marker
@@ -9,10 +8,78 @@ from obspy.core.event.base import QuantityError, Comment
 from obspy.core.event.origin import Origin
 from obspy import UTCDateTime
 from pyrocko import obspy_compat
-obspy_compat.plant()
-
 import logging
+
+obspy_compat.plant()
 Logger = logging.getLogger(__name__)
+
+
+def picks2markers(picks, event=None, phase=True, kinds=(1, 2)):
+    """
+    Convert list of Obspy Picks to Pyrocko Markers list
+    :param event: Obspy Event
+    :param phase: Make Phase Markers
+    :param kinds: tuple of length 2 with Marker "kind" (color) for P, then S
+    :param picks: list of Obspy Pick
+    :return: list of Pyrocko PhaseMarker
+    """
+    if phase and not event:
+        Logger.error("Must supply parameter event if phase=True")
+    # Convert event Obspy -> Pyrocko
+    cat = obspy.Catalog(events=[event])
+    evpyro = obspy_compat.to_pyrocko_events(cat)[0]
+
+    # Make marker list
+    markers = []
+    for p in picks:
+        if not p.waveform_id.location_code:
+            nscl = (p.waveform_id.network_code, p.waveform_id.station_code, "", p.waveform_id.channel_code)
+        else:
+            nscl = (p.waveform_id.network_code, p.waveform_id.station_code, p.waveform_id.location_code, p.waveform_id.channel_code)
+        kind = kinds[0] if "p" in p.phase_hint.lower() else kinds[1]
+        pick_time = str_to_time(p.time.strftime("%Y-%m-%d %H:%M:") + "%f" % (p.time.second + p.time.microsecond * 1e-6))
+
+        if phase:
+            m = PhaseMarker(nslc_ids=[nscl], tmin=pick_time, tmax=pick_time, kind=kind, event=evpyro, phasename=p.phase_hint)
+        else:
+            m = Marker(nslc_ids=[nscl], tmin=pick_time, tmax=pick_time, kind=kind)
+        markers.append(m)
+    return markers
+
+
+def fix_picks_ids(event, stream, method=None):
+    """
+    Fix the picks in an obspy Event don't have the matching waveform ID with the corresponding Obspy stream
+     Add network and dummy channel if station info available. N or 1 used as default for S phases, Z for P phases
+    :param method: String, only include pick for which string is in Pick.method_id.id
+    :param event: Obspy.Event
+    :param stream: Obspy.Stream
+    :return: list of Obspy Pick, Obspy.Event
+    """
+    newpicks = []  # Will create new pick list because in-place modification don't always work...
+    for p in event.picks:
+        newp = p.copy()
+        if not p.waveform_id.network_code or not p.waveform_id.channel_code:
+            station = p.waveform_id.station_code
+            traces = stream.select(station=station)
+            if not traces:
+                Logger.warning(f"No waveforms in stream matching station {station} found. Remove those picks.")
+                continue
+            network = traces[0].stats.network
+            if method:
+                if method.lower() not in p.method_id.id.lower():
+                    Logger.info(f"Skipping pick with method_id = {p.method_id}.")
+                    continue
+            if "s" in p.phase_hint.lower():  # Choose N or 1 as channel
+                channel = traces.select(channel="*[N1]")[0].stats.channel
+            elif "p" in p.phase_hint.lower():  # Choose Z channel
+                channel = traces.select(channel="*Z")[0].stats.channel
+            newp.waveform_id = WaveformStreamID(station_code=station, network_code=network, channel_code=channel)
+            newpicks.append(newp)
+        else:
+            newpicks.append(newp)
+
+    return newpicks, obspy.core.event.Event(picks=newpicks)
 
 
 def markers_to_quakeml(phase_markers, inv):
@@ -95,67 +162,3 @@ def markers_to_quakeml(phase_markers, inv):
 
     return cat
 
-
-def picks2markers(picks, event=None, phase=True, kinds=(1, 2)):
-    """
-    Convert list of Obspy Picks to Pyrocko Markers list
-    :param event: Obspy Event
-    :param phase: Make Phase Markers
-    :param kinds: tuple of length 2 with Marker "kind" (color) for P, then S
-    :param picks: list of Obspy Pick
-    :return: list of Pyrocko PhaseMarker
-    """
-    if phase and not event:
-        Logger.error("Must supply parameter event if phase=True")
-    # Convert event Obspy -> Pyrocko
-    cat = obspy.Catalog(events=[event])
-    evpyro = obspy_compat.to_pyrocko_events(cat)[0]
-
-    # Make marker list
-    markers = []
-    for p in picks:
-        if not p.waveform_id.location_code:
-            nscl = (p.waveform_id.network_code, p.waveform_id.station_code, "", p.waveform_id.channel_code)
-        else:
-            nscl = (p.waveform_id.network_code, p.waveform_id.station_code, p.waveform_id.location_code, p.waveform_id.channel_code)
-        kind = kinds[0] if "p" in p.phase_hint.lower() else kinds[1]
-        pick_time = str_to_time(p.time.strftime("%Y-%m-%d %H:%M:") + "%f" % (p.time.second + p.time.microsecond * 1e-6))
-
-        if phase:
-            m = PhaseMarker(nslc_ids=[nscl], tmin=pick_time, tmax=pick_time, kind=kind, event=evpyro, phasename=p.phase_hint)
-        else:
-            m = Marker(nslc_ids=[nscl], tmin=pick_time, tmax=pick_time, kind=kind)
-        markers.append(m)
-    return markers
-
-
-def fix_picks_ids(event, stream, method=None):
-    """
-    Fix the picks in an obspy Event don't have the matching waveform ID with the corresponding Obspy stream
-     Add network and dummy channel if station info available
-    :param method: String, only include pick for which string is in Pick.method_id.id
-    :param event: Obspy.Event
-    :param stream: Obspy.Stream
-    :return: list of Obspy Pick, Obspy.Event
-    """
-    newpicks = []  # Will create new pick list because in-place modification don't always work...
-    for p in event.picks:
-        station = p.waveform_id.station_code
-        traces = stream.select(station=station)
-        if not traces:
-            Logger.warning(f"No waveforms in stream matching station {station} found. Remove those picks.")
-            continue
-        network = traces[0].stats.network
-        if method:
-            if method.lower() not in p.method_id.id.lower():
-                Logger.info(f"Skipping pick with method_id = {p.method_id}.")
-                continue
-        if "s" in p.phase_hint.lower():  # Choose N or 1 as channel
-            channel = traces.select(channel="*[1N]")[0].stats.channel
-        elif "p" in p.phase_hint.lower():
-            channel = traces.select(channel="*Z")[0].stats.channel
-        newp = p.copy()
-        newp.waveform_id = WaveformStreamID(station_code=station, network_code=network, channel_code=channel)
-        newpicks.append(newp)
-
-    return newpicks, obspy.core.event.Event(picks=newpicks)
