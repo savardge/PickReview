@@ -3,3 +3,8 @@
 *.egg-info
 venv
 *__pycache__
+.ipynb_checkpoints
+NonLinLoc/bin/*
+NonLinLoc/temp_dir/*
+NonLinLoc/time_tables/vel*
+_*

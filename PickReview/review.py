@@ -1,5 +1,5 @@
 import glob
-
+import os
 import obspy.core.event
 import pyasdf
 import obspy
@@ -31,19 +31,24 @@ def run_snuffler(stream, events, markers, inventory, ntracks=12):
     return return_tag, markers_out
 
 
-# flist = glob.glob("/Volumes/ExtremeSSD/quakemigrate/cami/dets_fromscamp_h5/20200310*.h5")
-flist = glob.glob("/media/genevieve/ExtremeSSD/quakemigrate/cami/dets_fromscamp_h5/20200310*.h5")
-filename = flist[0]
-ds = pyasdf.ASDFDataSet(filename=filename)
-event = ds.events[0].copy()
-stream = obspy.Stream()
-for id in ds.waveforms.list():
-    stream += ds.waveforms[id]["raw_recording"]
-del ds
+if __name__ == "__main__":
 
-picks, _ = fix_picks_ids(event, stream, method="modelled")
-markers = picks2markers(picks, event=event, phase=True, kinds=(1, 2))
+    # flist = glob.glob("/Volumes/ExtremeSSD/quakemigrate/cami/dets_fromscamp_h5/20200310*.h5")
+    flist = glob.glob("/home/genevieve/research/quakemigrate/cami/dets_fromscamp_h5/20200310*.h5")
+    filename = flist[0]
+    ds = pyasdf.ASDFDataSet(filename=filename)
+    event = ds.events[0].copy()
+    stream = obspy.Stream()
+    for id in ds.waveforms.list():
+        stream += ds.waveforms[id]["raw_recording"]
+    del ds
 
-return_tag, markers_out = run_snuffler(stream, events=event, markers=markers, inventory=None)
+    picks, _ = fix_picks_ids(event, stream, method="modelled")
+    markers = picks2markers(picks, event=event, phase=True, kinds=(1, 2))
 
+    return_tag, markers_out = run_snuffler(stream, events=event, markers=markers, inventory=None)
+
+    run_dir = "/home/genevieve/research/PickReview/NonLinLoc/temp_dir"
+    fname = os.path.join(run_dir, "phases.obs")
+    write_obs(phase_markers=markers_out, fname=fname)
 
