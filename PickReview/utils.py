@@ -23,6 +23,7 @@ DEFAULT_LATITUDE = 50.45041  # Use injection well
 DEFAULT_LONGITUDE = -112.12067  # Use injection well
 DEFAULT_VP = 2000.
 DEFAULT_TRAVELTIME_BELOW_STATION = DEFAULT_DEPTH / DEFAULT_VP
+DEFAULT_PICK_UNCERTAINTY = 0.06
 
 
 def picks2markers(picks, event=None, phase=True, kinds=(1, 2)):
@@ -128,7 +129,7 @@ def markers_to_quakeml(phase_markers, picks_only=True, inv=None, origin=None):
         phase_tmin = phase_marker.tmin
         phase_tmax = phase_marker.tmax
         if phase_tmin == phase_tmax:
-            phase_unc = 0.05
+            phase_unc = DEFAULT_PICK_UNCERTAINTY
             phase_time = phase_tmin
         else:
             phase_unc = (phase_tmax - phase_tmin) * 0.5
@@ -198,7 +199,7 @@ def write_obs(phase_markers, fname):
             phase_tmin = phase_marker.tmin
             phase_tmax = phase_marker.tmax
             if phase_tmin == phase_tmax:
-                phase_unc = -1
+                phase_unc = DEFAULT_PICK_UNCERTAINTY
                 phase_time = phase_tmin
             else:
                 phase_unc = (phase_tmax - phase_tmin) * 0.5
@@ -243,7 +244,3 @@ def write_obs(phase_markers, fname):
                    f"{period:9.2e} " \
                    f"{priorwt:9.2e}\n"
             outfile.write(line)
-            print("%s\n" % line)
-
-
-

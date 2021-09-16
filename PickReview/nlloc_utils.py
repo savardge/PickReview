@@ -1,10 +1,11 @@
 import glob
 import os
-from subprocess import Popen, PIPE
+import subprocess
 import logging
 Logger = logging.getLogger(__name__)
 
 NLL_EXECUTABLE = "/home/genevieve/research/PickReview/NonLinLoc/bin/NLLoc"
+NLL_CONTROL = "/home/genevieve/research/PickReview/NonLinLoc/run/nlloc_loc.in"
 
 
 def run_nonlinloc(fname):
@@ -12,20 +13,8 @@ def run_nonlinloc(fname):
     os.chdir(os.path.split(fname)[0])  # Change to NLL run directory
     env = dict(os.environ)
 
-    try:
-        p = Popen([NLL_EXECUTABLE + " nlloc_loc.in"], env=env, stdout=PIPE)
-    except OSError as e:
-        import errno
-        if e.errno == errno.ENOENT:
-            logging.error('NLLoc executable not found')
-            # return
-        else:
-            raise e
-
-    (out, err) = p.communicate()
+    p = subprocess.run([f"{NLL_EXECUTABLE} {NLL_CONTROL}"], env=env, stdout=subprocess.PIPE, shell=True)
+    print(p.stdout.decode('utf-8'))
     os.chdir(old_wd)
-
-    # Get the output file
-
 
 #def write_nlloc_control(fout, ):

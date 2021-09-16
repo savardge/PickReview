@@ -1,24 +1,22 @@
 # CONTROL messageFlag randomNumberSeed
 CONTROL 2 54321
-
 # TRANS SIMPLE latOrig longOrig rotAngle
 TRANS SIMPLE 50.45041 -112.12067 0.0 # injection well
 
-# Vel2Grid control file statements
-
-VGOUT ./vel1d_active/model/layer
+# *** Vel2Grid control file statements
+VGOUT ./vel1d_active0/model/layer
 VGTYPE S
 
 # VGGRID xNum yNum zNum xOrig yOrig zOrig dx dy dz gridType
-VGGRID 2 3000 1000 0.0 0.0 -0.005 0.001 0.001 0.001 SLOW_LEN
+VGGRID 2 3000 1000 0.0 0.0 -0.01 0.001 0.001 0.001 SLOW_LEN
 
 # model layers
 INCLUDE vel_model_activecorr.dat
 
-# Grid2Time control file statements
+# *** Grid2Time control file statements
 
 # GTFILES ttimeFileRoot outputFileRoot waveType
-GTFILES ./vel1d_active/model/layer ./vel1d_active/time/layer S
+GTFILES ./vel1d_active0/model/layer ./vel1d_active0/time/layer P
 
 # GTMODE gridMode angleMode
 GTMODE GRID2D ANGLES_YES
@@ -27,10 +25,10 @@ GTMODE GRID2D ANGLES_YES
 # Important: z = zSrce - elev
 
 # Reference elevation is: 774 m.a.s.l
-INCLUDE gtsrc_stations_welev.dat
+#INCLUDE gtsrc_stations_welev.dat
 
 # All surface stations set at z=0, borehole reference elevation is: 779.60 m.a.s.l
-# INCLUDE gtsrc_stations_z0.dat
+INCLUDE gtsrc_stations_z0.dat
 
 # GT_PLFD hs_eps_init message_flag
 GT_PLFD 1.0E-3 1
